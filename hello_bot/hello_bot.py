@@ -10,15 +10,16 @@ from flask import Flask, request
 from webexteamssdk import WebexTeamsAPI, Webhook
 
 #required by Calendar API
+from calendar_integration import CalendarIntegration, CalendarQuery
 import datetime
 import pickle
+import re
 import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-# If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+
 
 # local imports ----------------------------------------------------------------
 from helpers import (read_yaml_data,
@@ -28,6 +29,24 @@ from helpers import (read_yaml_data,
 
 flask_app = Flask(__name__)
 teams_api = None
+
+def print_events(webhook_obj, events):
+    room = teams_api.rooms.get(webhook_obj.data.roomId)
+    message = teams_api.messages.get(webhook_obj.data.id)
+    person = teams_api.people.get(message.personId)
+    email = person.emails[0]
+    if not events:
+        print('No upcoming events found.')
+        teams_api.messages.create(room.id, text='You don\'t have any events.')
+    for event in events:
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        dt_start = datetime.datetime.strptime(start, '%Y-%m-%dT%H:%M:%SZ')
+        start = dt_start.ctime()
+        
+        print(start, event['summary'])
+        teams_api.messages.create(room.id, text='{} {}'.format(start, event['summary']))
+
+
 
 # Create a python decorator which tells Flask to execute this method when the "/teamswebhook" uri is hit
 # and the HTTP method is a "POST" request. 
@@ -63,48 +82,25 @@ def teamswebhook():
         if message.personId == me.id:
             return 'OK'
         else:
-            teams_api.messages.create(room.id, text='Hello, person who has email '+str(email))
-
-        if message.text == "calendar":
-            now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
-            print('Getting the upcoming 10 events')
-            events_result = service.events().list(calendarId='primary', timeMin=now,
-                                                maxResults=10, singleEvents=True,
-                                                orderBy='startTime').execute()
-            events = events_result.get('items', [])
-
-            if not events:
-                print('No upcoming events found.')
-            for event in events:
-                start = event['start'].get('dateTime', event['start'].get('date'))
-                print(start, event['summary'])
-            else:
-                print('received none post request, not handled!')
-
+            pass
+        if message.text == "tomorrow events":
+            events = CalendarQuery.tomorrow(ci)
+            print_events(webhook_obj, events)
+        if re.match('next\s\d+\sevents', message.text) is not None:
+            num_events = int(message.text.split(' ')[1].split(' ')[0])
+            events = CalendarQuery.next_events(ci, num_events)
+            print_events(webhook_obj, events)
+        if message.text == "next events":
+            events = CalendarQuery.next_events(ci, 10)
+            print_events(webhook_obj, events)
+        if message.text == "today events":
+            events = CalendarQuery.today(ci)
+            print_events(webhook_obj, events)
 
 if __name__ == '__main__':
 
-    # Connecting to G Calendar
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token, encoding="utf8")
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_console()
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
-    service = build('calendar', 'v3', credentials=creds)
+    ci = CalendarIntegration()
+    ci.authorize_api()
 
     # Read the configuration that contains the bot access token
     config = read_yaml_data('/opt/config/config.yaml')['hello_bot']
