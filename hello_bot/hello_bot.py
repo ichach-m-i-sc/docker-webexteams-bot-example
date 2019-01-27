@@ -15,6 +15,7 @@ import datetime
 import pickle
 import re
 import os.path
+import calendar
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -86,7 +87,7 @@ def teamswebhook():
             return 'OK'
         else:
             pass
-        if message.text[:7] == "answer ":
+        if message.text[:8] == "@answer ":
             query_string = message.text[7:]
             # print(query_string)
             response = query(query_string)
@@ -100,22 +101,50 @@ def teamswebhook():
             else:
                 teams_api.messages.create(room.id, text=response.related_topics[0].text)
             teams_api.messages.create(room.id, text='Read more: {}'.format(url))
-        elif message.text[:9] == "calendar ":
-            if message.text == "calendar tomorrow":
+        elif message.text[:10] == "@calendar ":
+            if message.text == "@calendar tomorrow":
                 events = CalendarQuery.tomorrow(ci)
                 print_events(webhook_obj, events)
-            elif re.match('calendar\snext\s\d+', message.text) is not None:
+            elif re.match('@calendar\snext\s\d+', message.text) is not None:
                 num_events = int(message.text.rsplit(' ', 1)[1])
                 events = CalendarQuery.next_events(ci, num_events)
                 print_events(webhook_obj, events)
-            elif message.text == "calendar next":
+            elif message.text == "@calendar next":
                 events = CalendarQuery.next_events(ci, 10)
                 print_events(webhook_obj, events)
-            elif message.text == "calendar today":
+            elif message.text == "@calendar today":
                 events = CalendarQuery.today(ci)
                 print_events(webhook_obj, events)
+        elif message.text[:13] == "@availability":
+            if message.text == "@availability":
+                best_dates, people_that_agree = parser.get_best_date()
+                if not best_dates:
+                    teams_api.messages.create(room.id, text='There is no availability information available.')
+                else:
+                    teams_api.messages.create(room.id, text='The best day for a meeting is: {}'.format(str(best_dates[0])))
+                    if people_that_agree:
+                        teams_api.messages.create(room.id, text='The following teammates confirmed they are available: {}'.format(', '.join(list(set(people_that_agree)))))
+
+            if message.text == "@availability reset":
+                parser.reset_date()
+            if re.match('@availability\screate\s-start\s\d+\s-end\s\d+', message.text) is not None:
+                parts = message.text.split(' ')
+                start_time = datetime.datetime.combine(parser.get_best_date()[0][0], datetime.datetime.min.time()) + datetime.timedelta(hours = int(parts[3]))
+                end_time = datetime.datetime.combine(parser.get_best_date()[0][0], datetime.datetime.min.time()) + datetime.timedelta(hours = int(parts[5]))
+                existing_events = ci.get_events(start_time=start_time, end_time=end_time)
+                print(start_time)
+                print(end_time)
+                if existing_events:
+                    teams_api.messages.create(room.id, text='An event already exists at that time.')
+                    print_events(webhook_obj,existing_events)
+                else:
+                    ci.add_event(summary = "Meeting by @calendar_bot", start_time = start_time, end_time = end_time)
+                    teams_api.messages.create(room.id, text='Meeting setup succesful.')
+
         else:
             print(parser.extract(message.text))
+            parser.manage_text(message.text)
+            print(parser.get_best_date())
 
 if __name__ == '__main__':
 

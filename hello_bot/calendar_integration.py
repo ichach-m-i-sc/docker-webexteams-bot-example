@@ -49,13 +49,14 @@ class CalendarIntegration(object):
         events = events_result.get('items', [])
         return events
 
-    def add_event(self, start_time, end_time, summary, location, description):
+    def add_event(self, start_time, end_time, summary, location = None, description= None):
         start_time_formatted = start_time.isoformat() + 'Z'
         end_time_formatted = end_time.isoformat() + 'Z'
         event_body = {'summary' : summary, 'location' : location,
         'description' : description, 'start' : {'dateTime' : start_time_formatted}, 
         'end': {'dateTime' : end_time_formatted}}
-        event = self.calendar.events().insert(calendarId='primary')
+        print(event_body)
+        event = self.calendar.events().insert(calendarId='primary', body=event_body).execute()
 
 class CalendarQuery(object):
     @staticmethod
