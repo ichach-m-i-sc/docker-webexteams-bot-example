@@ -6,7 +6,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = {'READ_ONLY' : 'https://www.googleapis.com/auth/calendar.readonly'}
+SCOPES = {'READ_ONLY' : 'https://www.googleapis.com/auth/calendar'}
 
 class CalendarIntegration(object):
     def __init__(self):
@@ -49,6 +49,14 @@ class CalendarIntegration(object):
         events = events_result.get('items', [])
         return events
 
+    def add_event(self, start_time, end_time, summary, location, description):
+        start_time_formatted = start_time.isoformat() + 'Z'
+        end_time_formatted = end_time.isoformat() + 'Z'
+        event_body = {'summary' : summary, 'location' : location,
+        'description' : description, 'start' : {'dateTime' : start_time_formatted}, 
+        'end': {'dateTime' : end_time_formatted}}
+        event = self.calendar.events().insert(calendarId='primary')
+
 class CalendarQuery(object):
     @staticmethod
     def next_events(calendar, max_events):
@@ -63,3 +71,7 @@ class CalendarQuery(object):
     def today(calendar):
         today = datetime.datetime.today()
         return calendar.get_events(start_time = today, end_time = today.replace(hour=0, minute=0, second=0) + datetime.timedelta(minutes=1439))
+
+    @staticmethod
+    def create_event(calendar):
+        pass

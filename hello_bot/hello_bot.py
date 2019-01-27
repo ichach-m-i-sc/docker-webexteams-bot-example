@@ -22,6 +22,8 @@ from google.auth.transport.requests import Request
 #duckduckgo
 from duckduckpy import query
 
+from test_text_analysis.ParserICHack import ParserICHack
+
 # local imports ----------------------------------------------------------------
 from helpers import (read_yaml_data,
                      get_ngrok_url,
@@ -86,10 +88,10 @@ def teamswebhook():
             pass
         if message.text[:7] == "answer ":
             query_string = message.text[7:]
-            print(query_string)
+            # print(query_string)
             response = query(query_string)
-            print(str(response).encode('utf-8'))
-            print(str(response.abstract_url).encode('utf-8'))
+            # print(str(response).encode('utf-8'))
+            # print(str(response.abstract_url).encode('utf-8'))
             url = response.abstract_url
             # print(str(response.related_topics[0].url).encode('utf-8'))
             # teams_api.messages.create(room.id, text=response.related_topics[0].text)
@@ -112,11 +114,15 @@ def teamswebhook():
             elif message.text == "calendar today":
                 events = CalendarQuery.today(ci)
                 print_events(webhook_obj, events)
+        else:
+            print(parser.extract(message.text))
 
 if __name__ == '__main__':
 
     ci = CalendarIntegration()
     ci.authorize_api()
+
+    parser = ParserICHack()
 
     # Read the configuration that contains the bot access token
     config = read_yaml_data('/opt/config/config.yaml')['hello_bot']
