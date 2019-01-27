@@ -89,11 +89,15 @@ def teamswebhook():
             print(query_string)
             response = query(query_string)
             print(str(response).encode('utf-8'))
+            print(str(response.abstract_url).encode('utf-8'))
+            url = response.abstract_url
+            # print(str(response.related_topics[0].url).encode('utf-8'))
             # teams_api.messages.create(room.id, text=response.related_topics[0].text)
             if response.abstract_text:
                 teams_api.messages.create(room.id, text=response.abstract_text)
             else:
                 teams_api.messages.create(room.id, text=response.related_topics[0].text)
+            teams_api.messages.create(room.id, text='Read more: {}'.format(url))
         elif message.text[:9] == "calendar ":
             if message.text == "calendar tomorrow":
                 events = CalendarQuery.tomorrow(ci)
