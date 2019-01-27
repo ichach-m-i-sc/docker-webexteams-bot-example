@@ -18,6 +18,7 @@ RUN pip install -r /tmp/requirements.txt
 COPY webexteamssdk /webexteamssdk
 RUN pip install /webexteamssdk
 RUN pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+RUN pip install duckduckpy
 ADD https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip /tmp/ngrok.zip
 RUN set -x \
     && unzip -o /tmp/ngrok.zip -d /bin

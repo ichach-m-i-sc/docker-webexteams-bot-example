@@ -19,7 +19,8 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-
+#duckduckgo
+from duckduckpy import query
 
 # local imports ----------------------------------------------------------------
 from helpers import (read_yaml_data,
@@ -83,19 +84,30 @@ def teamswebhook():
             return 'OK'
         else:
             pass
-        if message.text == "tomorrow events":
-            events = CalendarQuery.tomorrow(ci)
-            print_events(webhook_obj, events)
-        if re.match('next\s\d+\sevents', message.text) is not None:
-            num_events = int(message.text.split(' ')[1].split(' ')[0])
-            events = CalendarQuery.next_events(ci, num_events)
-            print_events(webhook_obj, events)
-        if message.text == "next events":
-            events = CalendarQuery.next_events(ci, 10)
-            print_events(webhook_obj, events)
-        if message.text == "today events":
-            events = CalendarQuery.today(ci)
-            print_events(webhook_obj, events)
+        if message.text[:7] == "answer ":
+            query_string = message.text[7:]
+            print(query_string)
+            response = query(query_string)
+            print(str(response).encode('utf-8'))
+            # teams_api.messages.create(room.id, text=response.related_topics[0].text)
+            if response.abstract_text:
+                teams_api.messages.create(room.id, text=response.abstract_text)
+            else:
+                teams_api.messages.create(room.id, text=response.related_topics[0].text)
+        elif message.text[:9] == "calendar ":
+            if message.text == "calendar tomorrow":
+                events = CalendarQuery.tomorrow(ci)
+                print_events(webhook_obj, events)
+            elif re.match('calendar\snext\s\d+', message.text) is not None:
+                num_events = int(message.text.rsplit(' ', 1)[1])
+                events = CalendarQuery.next_events(ci, num_events)
+                print_events(webhook_obj, events)
+            elif message.text == "calendar next":
+                events = CalendarQuery.next_events(ci, 10)
+                print_events(webhook_obj, events)
+            elif message.text == "calendar today":
+                events = CalendarQuery.today(ci)
+                print_events(webhook_obj, events)
 
 if __name__ == '__main__':
 
